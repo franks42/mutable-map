@@ -6,6 +6,8 @@
     [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMapKeys maybe-keys]]
   	)
   (:require 
+    [mutable-kvmap.core]
+    [mutable-kvmap.utils]
     [cljs.reader :as reader]
     [goog.storage.mechanism.HTML5LocalStorage :as html5ls]))
 
@@ -78,6 +80,7 @@
 (extend-type goog.storage.mechanism.HTML5LocalStorage
   
   ILookup
+  
   (-lookup
     ([ls k]
       (-lookup ls k nil))
@@ -87,10 +90,12 @@
         not-found)))
 
   ICounted
+  
   (-count [ls] 
     (.getCount ls))
 
   IFn
+  
   (-invoke
     ([ls k]
       (-lookup ls k))
@@ -98,6 +103,7 @@
       (-lookup ls k not-found))) 
 
   ITransientAssociative
+  
   (-assoc! [ls k v]
     (let [oldval (get ls k no-value)]
       (when-not (or (and (undefined? v)(undefined? oldval))
@@ -111,6 +117,7 @@
     ls)
 
   ITransientMap
+  
   (-dissoc! [ls k]
     (let [oldval (get ls k no-value)]
       (when-not (undefined? oldval)
@@ -157,6 +164,7 @@
       (doseq [k-f fns-map]
         ((val k-f) (key k-f) ls mapkey oldval newval)))
     ls)
+    
   (add-kvmap-watch 
     ([ls fnkey f]
       (swap! ls-kvmap-watchers-atom assoc fnkey f)
@@ -164,6 +172,7 @@
     ([ls mapkey fnkey f]
       (swap! ls-kvmap-key-watchers-atom assoc-in [mapkey fnkey] f)
       ls))
+      
   (remove-kvmap-watch
     ([ls mapkey fnkey]
       (if (= ls mapkey)
@@ -233,3 +242,19 @@
 ;;     (println "storage event"))
 ;;   false)
 ;; 
+
+(make-cached-html5-local-storage
+  "Returns a mutable kvmap that holds a cached, two-way sync'ed copy of 
+  the local storage's key-value pairs.
+  All updates to the returned kvmap will be passed thru to the local storage.
+  If the local storage is changed thru the implemented assoc! and dissoc! protocols, 
+  then those changes will be reflected in the returned kvmap.
+  "
+  []
+  (let [kvm (mutable-kvmap.core/make-mutable-kvmap)
+        ls (get-local-storage)]
+    (mutable-kvmap.utils/copy-mutable-kvmaps ls kvm)
+    (mutable-kvmap.utils/sync-mutable-kvmaps ls kvm)
+    (mutable-kvmap.utils/sync-mutable-kvmaps kvm ls)
+    kvm))
+    

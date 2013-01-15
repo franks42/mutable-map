@@ -17,6 +17,7 @@
 (extend-type MutableKVMap
   
   ILookup
+  
   (-lookup
     ([kvm mapkey]
       (-lookup kvm mapkey nil))
@@ -25,10 +26,12 @@
         (get @kvm-atm mapkey not-found))))
 
   ICounted
+  
   (-count [kvm] 
     (count (deref (.-kvmap-atom kvm))))
 
   IFn
+  
   (-invoke
     ([kvm k]
       (-lookup kvm k))
@@ -36,6 +39,7 @@
       (-lookup kvm k not-found))) 
 
   ITransientAssociative
+  
   (-assoc! [kvm mapkey newval]
     (let [kvm-atm (.-kvmap-atom kvm)
           oldval (-lookup kvm mapkey no-value)]
@@ -48,6 +52,7 @@
     kvm)
 
   ITransientMap
+  
   (-dissoc! [kvm mapkey]
     (let [kvm-atm (.-kvmap-atom kvm)
           oldval (-lookup kvm mapkey no-value)]
@@ -57,6 +62,7 @@
     kvm)
 
   IMutableKVMapWatchable
+  
   (notify-kvmap-watches [kvm mapkey oldval newval]
     (let [kvm-watchers-atm (.-kvmap-watchers-atom kvm)]
       (when-let [fns-map @kvm-watchers-atm]
@@ -67,6 +73,7 @@
         (doseq [k-f fns-map]
           ((val k-f) (key k-f) kvm mapkey oldval newval))))
     kvm)
+    
   (add-kvmap-watch 
     ([kvm fnkey f]
       (swap! (.-kvmap-watchers-atom kvm) assoc fnkey f)
@@ -74,6 +81,7 @@
     ([kvm mapkey fnkey f]
       (swap! (.-kvmap-key-watchers-atom kvm) assoc-in [mapkey fnkey] f)
       kvm))
+      
   (remove-kvmap-watch
     ([kvm mapkey fnkey]
       (if (= kvm mapkey)
@@ -97,9 +105,12 @@
   ;; deref'ing the kvmap gives you an immutable map instance to work with.
   ;; so does any get/lookup get you an immutable key-value
   IDeref
-  (-deref [kvm] (deref (.-kvmap-atom kvm)))
+  
+  (-deref [kvm] 
+    (deref (.-kvmap-atom kvm)))
 
   IMutableKVMapKeys
+  
   (maybe-keys [kvm]
     (keys (-deref kvm)))
 
