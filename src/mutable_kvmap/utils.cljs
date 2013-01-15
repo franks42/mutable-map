@@ -1,7 +1,14 @@
 (ns mutable-kvmap.utils
   ""
-  )
+  (:use 
+    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMapKeys maybe-keys]]
+  	)
+  (:require [cljs.reader :as reader]
+  ))
 
+
+;; use undefined variable/value to communicate no-value in watcher-fns
+(def ^:private no-value)
 
 ;; clj-js-string
 (def clj-edn-prefix "clj-edn:")
@@ -20,6 +27,18 @@
 
 ;;
 
+(defn copy-mutable-kvmaps
+  "Copy one kv-map to another.
+  Uses 'maybe-keys' to iterate over src-map kvs.
+  Overwrites existing values in dest-map,
+  but leaves non-effected kvs alone."
+  ([src-map dest-map]
+    (when (and (satisfies? IMutableKVMapKeys src-map)
+               (satisfies? IMutableKVMapKeys dest-map))
+      (map 
+        (fn [k] (assoc! dest-map k (get src-map k)))
+        (maybe-keys src-map)))))
+
 
 (defn sync-mutable-kvmaps
   "Register watcher functions with the mutable key-value map 
@@ -34,7 +53,7 @@
     (when (and (satisfies? IMutableKVMapWatchable src-map)
                (satisfies? IMutableKVMapWatchable dest-map))
       (let [f (fn [fnkey this mapkey oldval newval]
-                (if (= newval no-val)
+                (if (undefined? newval)
                   (dissoc! dest-map dest-map-key)
                   (assoc! dest-map dest-map-key newval)))]
         (add-kvmap-watch src-map src-map-key f f)
@@ -43,8 +62,8 @@
     (when (and (satisfies? IMutableKVMapWatchable src-map)
                (satisfies? IMutableKVMapWatchable dest-map))
       (let [f (fn [fnkey this mapkey oldval newval]
-                (if (= newval no-val)
-                  (dissoc! dest-map map-key)
-                  (assoc! dest-map map-key newval)))]
+                (if (undefined? newval)
+                  (dissoc! dest-map mapkey)
+                  (assoc! dest-map mapkey newval)))]
         (add-kvmap-watch src-map f f)
         f))))

@@ -3,7 +3,7 @@
   Notice:
   This code is based on an initial shoreleave-browser 0.2.2 implementation - hopefully some of this code can make its way back..."
   (:use 
-    [mutable-kvmap.protocols :only [no-value IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch]]
+    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMapKeys maybe-keys]]
   	)
   (:require 
     [cljs.reader :as reader]
@@ -37,6 +37,41 @@
 
 
 
+;; The HTML5 Local Storage is a singleton, i.e. only one instance.
+;; Not sure why Closure's goog.storage.mechanism.HTML5LocalStorage
+;; constructor yields new variable instances for the same store (???)
+;; the following tries to give you always the same var such that
+;; you can actually compare them to be equal
+
+
+;; use undefined variable/value to communicate no-value in watcher-fns
+(def ^:private no-value)
+
+
+(def local-storage (goog.storage.mechanism.HTML5LocalStorage.))
+
+(defn get-local-storage
+  "Get the browser's localStorage"
+  [] local-storage)
+
+
+(defn local-storage-keys
+  "Return the current list of keys of the local storage as a list of cljs-values.
+  Note that from the moment that list is generated, it may be out-of-date
+  as the local storage can be changed from other threads of work, 
+  even from other browser windows."
+  ([] (local-storage-keys (get-local-storage)))
+  ([ls]
+  (let [i (.__iterator__ ls true)] 
+    (loop [lsks []] 
+      (let [k (try (.next i) (catch js/Object e))]
+        (if-not k
+          lsks
+          (recur (conj lsks (cljs.reader/read-string k)))))))))
+
+;;
+
+
 (def ls-kvmap-watchers-atom (atom {}))
 (def ls-kvmap-key-watchers-atom (atom {}))
 
@@ -45,7 +80,7 @@
   ILookup
   (-lookup
     ([ls k]
-      (-lookup ls k no-value))
+      (-lookup ls k nil))
     ([ls k not-found]
       (if-let [v (.get ls (pr-str k))]
         (cljs.reader/read-string v)
@@ -65,8 +100,11 @@
   ITransientAssociative
   (-assoc! [ls k v]
     (let [oldval (get ls k no-value)]
-      (when-not (= oldval v)
-        (.set ls (pr-str k) (pr-str v))
+      (when-not (or (and (undefined? v)(undefined? oldval))
+                    (= oldval v))
+        (if (undefined? v)
+          (.remove ls (pr-str k))
+          (.set ls (pr-str k) (pr-str v)))
 ;;         (-notify-watches ls {:key k :value oldval} {:key k :value v})
         (notify-kvmap-watches ls k oldval v)
         ))
@@ -75,7 +113,7 @@
   ITransientMap
   (-dissoc! [ls k]
     (let [oldval (get ls k no-value)]
-      (when-not (= oldval no-value)
+      (when-not (undefined? oldval)
         (.remove ls (pr-str k))
         ;; next is a hack to communicate the key to the notify-watches context
         ;; protocol doesn't really match well, but this way it "works"
@@ -145,7 +183,11 @@
       (reset! ls-kvmap-watchers-atom {})
       (reset! ls-kvmap-key-watchers-atom {})
       ls))
-
+      
+  IMutableKVMapKeys
+  
+  (maybe-keys [ls]
+    (local-storage-keys))
 )
 
 (defn empty!
@@ -154,33 +196,6 @@
   (.clear ls)
   ls)
 
-
-;; The HTML5 Local Storage is a singleton, i.e. only one instance.
-;; Not sure why Closure's goog.storage.mechanism.HTML5LocalStorage
-;; constructor yields new variable instances for the same store (???)
-;; the following tries to give you always the same var such that
-;; you can actually compare them to be equal
-
-(def local-storage (goog.storage.mechanism.HTML5LocalStorage.))
-
-(defn get-local-storage
-  "Get the browser's localStorage"
-  [] local-storage)
-
-
-(defn local-storage-keys 
-  "Return the current list of keys of the local storage as a list of cljs-values.
-  Note that from the moment that list is generated, it may be out-of-date
-  as the local storage can be changed from other threads of work, 
-  even from other browser windows."
-  ([] (local-storage-keys (get-local-storage)))
-  ([ls]
-  (let [i (.__iterator__ ls true)] 
-    (loop [lsks []] 
-      (let [k (try (.next i) (catch js/Object e))]
-        (if-not k
-          lsks
-          (recur (conj lsks (cljs.reader/read-string k)))))))))
 
 
 ;; window.addEventListener("storage", handle_storage, false);
@@ -206,7 +221,8 @@
                 mapkey (cljs.reader/read-string (.-key e))
                 oldValue (.-oldValue e)
                 oldval (if oldValue (cljs.reader/read-string (.-oldValue e)) no-value)
-                newval (cljs.reader/read-string (.-newValue e))]
+                newValue (.-newValue e)
+                newval (if newValue (cljs.reader/read-string newValue) no-value)]
 ;;         (println "\"storage\" event(mapkey, oldValue, newval, storageArea, local-storage?):" mapkey oldval newval storage-area local-storage?)
         (notify-kvmap-watches ls mapkey oldval newval)))))
     false))

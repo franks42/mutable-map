@@ -1,12 +1,14 @@
 (ns mutable-kvmap.core
   ""
   (:use 
-    [mutable-kvmap.protocols :only [no-value IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch]]
+    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMapKeys maybe-keys]]
   	)
   (:require [cljs.reader :as reader]
             [mutable-kvmap.utils]
     ))
 
+;; use undefined variable/value to communicate no-value in watcher-fns
+(def ^:private no-value)
 
 (deftype MutableKVMap [kvmap-atom kvmap-key-watchers-atom kvmap-watchers-atom])
 
@@ -37,8 +39,11 @@
   (-assoc! [kvm mapkey newval]
     (let [kvm-atm (.-kvmap-atom kvm)
           oldval (-lookup kvm mapkey no-value)]
-      (when-not (= oldval newval)
-        (swap! kvm-atm assoc mapkey newval)
+      (when-not (or (and (undefined? newval)(undefined? oldval))
+                    (= oldval newval))
+        (if (undefined? newval)
+          (swap! kvm-atm dissoc mapkey)
+          (swap! kvm-atm assoc mapkey newval))
         (notify-kvmap-watches kvm mapkey oldval newval)))
     kvm)
 
@@ -46,10 +51,8 @@
   (-dissoc! [kvm mapkey]
     (let [kvm-atm (.-kvmap-atom kvm)
           oldval (-lookup kvm mapkey no-value)]
-      (when-not (= oldval no-value)
+      (when-not (undefined? oldval)
         (swap! kvm-atm dissoc mapkey)
-        ;; next is a hack to communicate the key to the notify-watches context
-        ;; protocol doesn't really match well, but this way it "works"
         (notify-kvmap-watches kvm mapkey oldval no-value)))
     kvm)
 
@@ -95,6 +98,10 @@
   ;; so does any get/lookup get you an immutable key-value
   IDeref
   (-deref [kvm] (deref (.-kvmap-atom kvm)))
+
+  IMutableKVMapKeys
+  (maybe-keys [kvm]
+    (keys (-deref kvm)))
 
   ;; ITransientCollection
   )

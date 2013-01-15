@@ -2,10 +2,6 @@
   ""
   )
 
-;; define a no-value variable to distinguish between nil and no-value/non-existent
-;; (def no-value :absolutely-non-existent-value)
-(def no-value "uri:http://clojure.org/uri/no-value")
-
 
 (defprotocol IMutableKVMapWatchable
   "A mutable kvmap is a key-value store that lends itself to
@@ -30,3 +26,7 @@
     If mapkey equals this kvmap then the watcher-fns registered on the kvmap itself are removed.")
     )
 
+(defprotocol IMutableKVMapKeys
+  "Standardize the interface of obtaining a current list of keys from a mutable kvmap.
+  The name 'maybe-keys' reflects the imperfect knowledge obtained..."
+  (maybe-keys [this]))
