@@ -27,17 +27,16 @@
 
 ;;
 
-(defn copy-mutable-kvmaps
-  "Copy one kv-map to another.
+(defn into!
+  "Copy/overwrites all kvs of src-map into dest-map.
   Uses 'maybe-keys' to iterate over src-map kvs.
   Overwrites existing values in dest-map,
   but leaves non-effected kvs alone."
-  ([src-map dest-map]
+  ([dest-map src-map]
     (when (and (satisfies? IMutableKVMapKeys src-map)
                (satisfies? IMutableKVMapKeys dest-map))
-      (map 
-        (fn [k] (assoc! dest-map k (get src-map k)))
-        (maybe-keys src-map)))))
+      (doseq [k (maybe-keys src-map)]
+        (assoc! dest-map k (get src-map k))))))
 
 
 (defn sync-mutable-kvmaps

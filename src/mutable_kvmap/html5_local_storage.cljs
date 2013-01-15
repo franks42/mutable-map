@@ -1,7 +1,6 @@
 (ns mutable-kvmap.html5-local-storage
   "An idiomatic interface to the browser's local storage.
-  Notice:
-  This code is based on an initial shoreleave-browser 0.2.2 implementation - hopefully some of this code can make its way back..."
+  Notice: This code is based on an initial shoreleave-browser 0.2.2 implementation - hopefully some of this code can make its way back..."
   (:use 
     [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMapKeys maybe-keys]]
   	)
@@ -39,15 +38,15 @@
 
 
 
+;; use undefined variable/value to communicate no-value in watcher-fns
+(def ^:private no-value)
+
+
 ;; The HTML5 Local Storage is a singleton, i.e. only one instance.
 ;; Not sure why Closure's goog.storage.mechanism.HTML5LocalStorage
 ;; constructor yields new variable instances for the same store (???)
 ;; the following tries to give you always the same var such that
 ;; you can actually compare them to be equal
-
-
-;; use undefined variable/value to communicate no-value in watcher-fns
-(def ^:private no-value)
 
 
 (def local-storage (goog.storage.mechanism.HTML5LocalStorage.))
@@ -197,20 +196,16 @@
   
   (maybe-keys [ls]
     (local-storage-keys))
-)
+  )
 
 (defn empty!
-  "Clear the localStorage"
+  "Clear the localStorage
+  Note that the watcher-fns won't be called!!!
+  should become part of protocol for kvmaps and it should call the watchers"
   [ls]
   (.clear ls)
   ls)
 
-
-
-;; window.addEventListener("storage", handle_storage, false);
-;; function handle_storage(e) {
-;;   if (!e) { e = window.event; }
-;; }
 
 (defn register-local-storage-event-watcher 
   "Register a 'storage' event handler that will notify the registered
@@ -219,7 +214,7 @@
   within other windows, and could be used to communicate state between
   different windows served from the same domain."
   []
-  (js/window.addEventListener 
+  (.addEventListener js/window
     "storage" 
     (fn [e] 
   ;;     (println "storage event")
@@ -236,16 +231,10 @@
         (notify-kvmap-watches ls mapkey oldval newval)))))
     false))
 
-;; (js/window.addEventListener 
-;;   "storage" 
-;;   (fn [e] 
-;;     (println "storage event"))
-;;   false)
-;; 
 
-(make-cached-html5-local-storage
+(defn make-cached-local-storage-kvmap
   "Returns a mutable kvmap that holds a cached, two-way sync'ed copy of 
-  the local storage's key-value pairs.
+  the local storage.
   All updates to the returned kvmap will be passed thru to the local storage.
   If the local storage is changed thru the implemented assoc! and dissoc! protocols, 
   then those changes will be reflected in the returned kvmap.
@@ -253,7 +242,7 @@
   []
   (let [kvm (mutable-kvmap.core/make-mutable-kvmap)
         ls (get-local-storage)]
-    (mutable-kvmap.utils/copy-mutable-kvmaps ls kvm)
+    (mutable-kvmap.utils/into! kvm ls)
     (mutable-kvmap.utils/sync-mutable-kvmaps ls kvm)
     (mutable-kvmap.utils/sync-mutable-kvmaps kvm ls)
     kvm))

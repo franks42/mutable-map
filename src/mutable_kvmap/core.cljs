@@ -112,7 +112,7 @@
   IMutableKVMapKeys
   
   (maybe-keys [kvm]
-    (keys (-deref kvm)))
+    (keys @kvm))
 
   ;; ITransientCollection
   )
