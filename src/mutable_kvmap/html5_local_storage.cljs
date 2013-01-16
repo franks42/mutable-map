@@ -2,7 +2,7 @@
   "An idiomatic interface to the browser's local storage.
   Notice: This code is based on an initial shoreleave-browser 0.2.2 implementation - hopefully some of this code can make its way back..."
   (:use 
-    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMapKeys maybe-keys]]
+    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update!]]
   	)
   (:require 
     [mutable-kvmap.core]
@@ -77,9 +77,9 @@
 (def ls-kvmap-key-watchers-atom (atom {}))
 
 (extend-type goog.storage.mechanism.HTML5LocalStorage
-  
+
   ILookup
-  
+
   (-lookup
     ([ls k]
       (-lookup ls k nil))
@@ -89,7 +89,7 @@
         not-found)))
 
   ICounted
-  
+
   (-count [ls] 
     (.getCount ls))
 
@@ -192,20 +192,30 @@
       (reset! ls-kvmap-key-watchers-atom {})
       ls))
       
-  IMutableKVMapKeys
+  IMutableKVMap
   
   (maybe-keys [ls]
     (local-storage-keys))
+  
+  (empty! [ls]
+    (let [ks (maybe-keys ls)]
+      (.clear ls)
+      (doseq [k ks]
+        (notify-kvmap-watches ls k nil no-value))))
+
+  ;; not an atomic operation...
+  (update! [ls mapkey f & args]
+    (let [oldval (-lookup ls mapkey no-value)]
+      (when-not (undefined? oldval)
+        (let [newval (apply f oldval args)]
+          (if (undefined? newval)
+            (dissoc! ls mapkey)
+            (assoc! ls mapkey newval)))))
+    kvm)
   )
 
-(defn empty!
-  "Clear the localStorage
-  Note that the watcher-fns won't be called!!!
-  should become part of protocol for kvmaps and it should call the watchers"
-  [ls]
-  (.clear ls)
-  ls)
 
+;;;;;;;;
 
 (defn register-local-storage-event-watcher 
   "Register a 'storage' event handler that will notify the registered

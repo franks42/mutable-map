@@ -1,7 +1,7 @@
 (ns mutable-kvmap.core
   ""
   (:use 
-    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMapKeys maybe-keys]]
+    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update!]]
   	)
   (:require [cljs.reader :as reader]
             [mutable-kvmap.utils]
@@ -40,6 +40,10 @@
 
   ITransientAssociative
   
+  ;; not an atomic operation!!!
+  ;; oldval may have changed before swap! is called, 
+  ;; which would yield the wrong oldval in the watcher-fn call
+  ;; probably won't matter in most situations... be aware, be warned
   (-assoc! [kvm mapkey newval]
     (let [kvm-atm (.-kvmap-atom kvm)
           oldval (-lookup kvm mapkey no-value)]
@@ -109,10 +113,25 @@
   (-deref [kvm] 
     (deref (.-kvmap-atom kvm)))
 
-  IMutableKVMapKeys
-  
+  IMutableKVMap
+    
   (maybe-keys [kvm]
     (keys @kvm))
+  
+  (empty! [kvm]
+    (doseq [k (maybe-keys kvm)]
+      (dissoc! kvm k)))
+
+  (update! [kvm mapkey f & args]
+    (let [kvm-atm (.-kvmap-atom kvm)
+          oldval (-lookup kvm mapkey no-value)]
+      (when-not (undefined? oldval)
+        (let [newval (apply f oldval args)]
+          (if (undefined? newval)
+            (swap! kvm-atm dissoc mapkey)
+            (swap! kvm-atm assoc mapkey newval))
+          (notify-kvmap-watches kvm mapkey oldval newval))))
+    kvm)
 
   ;; ITransientCollection
   )
