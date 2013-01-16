@@ -56,26 +56,6 @@
   [] local-storage)
 
 
-(defn local-storage-keys
-  "Return the current list of keys of the local storage as a list of cljs-values.
-  Note that from the moment that list is generated, it may be out-of-date
-  as the local storage can be changed from other threads of work, 
-  even from other browser windows."
-  ([] (local-storage-keys (get-local-storage)))
-  ([ls]
-    (for [i (range (.-length js/localStorage))] 
-      (cljs.reader/read-string (.key js/localStorage i)))))
-    
-;;     (let [i (.__iterator__ ls true)] 
-;;       (loop [lsks []] 
-;;         (let [k (try (.next i) (catch js/Object e))]
-;;           (if-not k
-;;             lsks
-;;             (recur (conj lsks (cljs.reader/read-string k)))))))))
-
-;;
-
-
 (def ls-kvmap-watchers-atom (atom {}))
 (def ls-kvmap-key-watchers-atom (atom {}))
 
@@ -172,7 +152,9 @@
       (swap! ls-kvmap-watchers-atom assoc fnkey f)
       ls)
     ([ls mapkey fnkey f]
-      (swap! ls-kvmap-key-watchers-atom assoc-in [mapkey fnkey] f)
+      (if (= ls mapkey)
+        (add-kvmap-watch ls fnkey f)
+        (swap! ls-kvmap-key-watchers-atom assoc-in [mapkey fnkey] f))
       ls))
       
   (remove-kvmap-watch
@@ -197,9 +179,21 @@
       
   IMutableKVMap
   
+;; Return the current list of keys of the local storage as a list of cljs-values.
+;; Note that from the moment that list is generated, it may be out-of-date
+;; as the local storage can be changed from other threads of work, 
+;; even from other browser windows.
   (maybe-keys [ls]
-    (local-storage-keys ls))
-  
+    (for [i (range (.-length js/localStorage))] 
+      (cljs.reader/read-string (.key js/localStorage i))))
+;; alternative implementation with goog's iterator... needs work
+;;     (let [i (.__iterator__ ls true)] 
+;;       (loop [lsks []] 
+;;         (let [k (try (.next i) (catch js/Object e))]
+;;           (if-not k
+;;             lsks
+;;             (recur (conj lsks (cljs.reader/read-string k)))))))))
+
   (empty! [ls]
     (let [ks (maybe-keys ls)]
       (.clear ls)
@@ -208,7 +202,7 @@
     ls)
 
   ;; not an atomic operation...
-  (update!* [kvm mapkey f args]
+  (update!* [ls mapkey f args]
     (let [oldval (-lookup ls mapkey no-value)]
       (when-not (undefined? oldval)
         (let [newval (apply f oldval args)]
