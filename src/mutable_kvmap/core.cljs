@@ -1,7 +1,7 @@
 (ns mutable-kvmap.core
   ""
   (:use 
-    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update!]]
+    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update! update!*]]
   	)
   (:require [cljs.reader :as reader]
             [mutable-kvmap.utils]
@@ -120,9 +120,10 @@
   
   (empty! [kvm]
     (doseq [k (maybe-keys kvm)]
-      (dissoc! kvm k)))
+      (dissoc! kvm k))
+    kvm)
 
-  (update! [kvm mapkey f & args]
+  (update!* [kvm mapkey f args]
     (let [kvm-atm (.-kvmap-atom kvm)
           oldval (-lookup kvm mapkey no-value)]
       (when-not (undefined? oldval)

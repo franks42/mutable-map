@@ -29,7 +29,7 @@
 
 (defprotocol IMutableKVMap
   ""
-  (update! [this k f & args]
+  (update!* [this k f args]
     "'Updates' a value in key-value list, where k is a
   key and f is a function that will take the old value associated with that key
   and any supplied args and return the new value. Update is made in-place.
@@ -49,16 +49,19 @@
     where ks is a sequence of keys. Returns nil if the key
     is not present, or the not-found value if supplied.
     This is a bug-fixed version that returns not-found for non-assoc structures.")
-  (assoc-in! [m [k & ks] v]
+  (assoc-in! [m ks v]
     "Associates a value in a nested associative structure, 
     where ks is a sequence of keys and v is the new value.
     If any levels do not exist, hash-maps will be created.
     Returns the changed mutable map.")
   (dissoc-in! [this ks]
     "")
-  (update-in! [m [k & ks] f & args]
+  (update-in! [m ks f & args]
     "'Updates' a value in a nested associative structure, where ks is a
     sequence of keys and f is a function that will take the old value
     and any supplied args and return the new value, and returns a new
     nested structure.  If any levels do not exist, hash-maps will be created.")
   )
+
+
+(defn update! [this k f & args] (update!* this k f args))

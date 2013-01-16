@@ -1,12 +1,12 @@
 (ns mutable-kvmap.utils
   ""
   (:use 
-    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update!]])
+    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update! update!*]])
   (:require [cljs.reader :as reader]))
 
 ;; missing core fns :-(
 
-(defn update* [m k f args]
+(defn update** [m k f args]
   (assoc m k (apply f (get m k) args)))
 
 ;; (defn dissoc-in
@@ -37,7 +37,7 @@
   [m [k & ks :as keys]]
   (if ks
     (if-let [nextmap (get m k)]
-      (let [newmap (dissoc-in nextmap ks)]
+      (let [newmap (dissoc-in* nextmap ks)]
         (if (seq newmap)
           (assoc m k newmap)
           (dissoc m k)))

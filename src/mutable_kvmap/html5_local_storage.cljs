@@ -2,7 +2,7 @@
   "An idiomatic interface to the browser's local storage.
   Notice: This code is based on an initial shoreleave-browser 0.2.2 implementation - hopefully some of this code can make its way back..."
   (:use 
-    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update!]]
+    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update! update!*]]
   	)
   (:require 
     [mutable-kvmap.core]
@@ -63,12 +63,15 @@
   even from other browser windows."
   ([] (local-storage-keys (get-local-storage)))
   ([ls]
-  (let [i (.__iterator__ ls true)] 
-    (loop [lsks []] 
-      (let [k (try (.next i) (catch js/Object e))]
-        (if-not k
-          lsks
-          (recur (conj lsks (cljs.reader/read-string k)))))))))
+    (for [i (range (.-length js/localStorage))] 
+      (cljs.reader/read-string (.key js/localStorage i)))))
+    
+;;     (let [i (.__iterator__ ls true)] 
+;;       (loop [lsks []] 
+;;         (let [k (try (.next i) (catch js/Object e))]
+;;           (if-not k
+;;             lsks
+;;             (recur (conj lsks (cljs.reader/read-string k)))))))))
 
 ;;
 
@@ -195,23 +198,24 @@
   IMutableKVMap
   
   (maybe-keys [ls]
-    (local-storage-keys))
+    (local-storage-keys ls))
   
   (empty! [ls]
     (let [ks (maybe-keys ls)]
       (.clear ls)
       (doseq [k ks]
-        (notify-kvmap-watches ls k nil no-value))))
+        (notify-kvmap-watches ls k nil no-value)))
+    ls)
 
   ;; not an atomic operation...
-  (update! [ls mapkey f & args]
+  (update!* [kvm mapkey f args]
     (let [oldval (-lookup ls mapkey no-value)]
       (when-not (undefined? oldval)
         (let [newval (apply f oldval args)]
           (if (undefined? newval)
             (dissoc! ls mapkey)
             (assoc! ls mapkey newval)))))
-    kvm)
+    ls)
   )
 
 
