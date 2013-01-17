@@ -8,6 +8,8 @@
 (def ss (ss/get-session-storage))
 (def am (am/make-atomic-map))
 
+(def m ls)
+(def m ss)
 (def m am)
 
 [
