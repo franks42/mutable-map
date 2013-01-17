@@ -55,7 +55,9 @@
     If any levels do not exist, hash-maps will be created.
     Returns the changed mutable map.")
   (dissoc-in! [this ks]
-    "")
+    "Removes the value in a nested associative structure refered to by ks,
+    which is a sequence of keys.
+    Returns the changed mutable map.")
   (update-in!* [m ks f args]
     "'Updates' a value in a nested associative structure, where ks is a
     sequence of keys and f is a function that will take the old value
@@ -72,3 +74,13 @@
   Watcher-fns will be notified for affected key."
   [this k f & args]
   (update!* this k f args))
+
+
+(defn update-in! 
+  "'Updates' a value in key-value list, where k is a
+  key and f is a function that will take the old value associated with that key
+  and any supplied args and return the new value. Update is made in-place.
+  If any levels do not exist, hash-maps will be created.
+  Watcher-fns will be notified for affected key."
+  [this ks f & args]
+  (update-in!* this ks f args))

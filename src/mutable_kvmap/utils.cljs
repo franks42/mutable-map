@@ -6,8 +6,14 @@
 
 ;; missing core fns :-(
 
-(defn update** [m k f args]
-  (assoc m k (apply f (get m k) args)))
+(defn update** 
+  ""
+  [m k f & args]
+  (let [no-value (atom {})
+        v (get m k no-value)]
+    (if (= v no-value)
+      m
+      (assoc m k (apply f v args)))))
 
 ;; (defn dissoc-in
 ;;   "Removes an entry in a nested associative structure.
@@ -47,7 +53,7 @@
 
 ;; (satisfies? ILookup m)
 (defn get-in*
-  "Returns the value in a nested associative structure,
+  "Returns the current immutable value in a mutable nested associative structure,
   where ks is a sequence of keys. Returns nil if the key is not present,
   or the not-found value if supplied."
   {:added "1.2"
