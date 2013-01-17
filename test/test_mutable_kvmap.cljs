@@ -5,86 +5,89 @@
 
 ;; choose one of the following for testing
 (def ls (ls/get-local-storage))
-(def ls (kv/make-mutable-kvmap))
+(def ss (ss/get-session-storage))
+(def am (am/make-atomic-map))
+
+(def m am)
 
 [
-(count ls)
-(empty! ls)
-(count ls)
+(count m)
+(empty! m)
+(count m)
 ]
 [
-(assoc! ls :a 111)
-(count ls)
-(get ls :a)
-(:a ls)
-(get ls :z :nothing-there)
+(assoc! m :a 111)
+(count m)
+(get m :a)
+(:a m)
+(get m :z :nothing-there)
 ]
 [
-(= (get (assoc! ls "b" "B") "b") "B")
-(= (get (assoc! ls 'b 'B) 'b) 'B)
-(= (get (assoc! ls :b :B) :b) :B)
-(= (get (assoc! ls nil nil) nil) nil)
-(= (get (assoc! ls ["b"] ["B"]) ["b"]) ["B"])
-(= (get (assoc! ls #{"b"} #{"B"}) #{"b"}) #{"B"})
-(= (get (assoc! ls {:b "b"} {:B "B"}) {:b "b"}) {:B "B"})
+(= (get (assoc! m "b" "B") "b") "B")
+(= (get (assoc! m 'b 'B) 'b) 'B)
+(= (get (assoc! m :b :B) :b) :B)
+(= (get (assoc! m nil nil) nil) nil)
+(= (get (assoc! m ["b"] ["B"]) ["b"]) ["B"])
+(= (get (assoc! m #{"b"} #{"B"}) #{"b"}) #{"B"})
+(= (get (assoc! m {:b "b"} {:B "B"}) {:b "b"}) {:B "B"})
 ]
 [
-(count ls)
-(maybe-keys ls)
-(map #(get ls %) (maybe-keys ls))
+(count m)
+(maybe-keys m)
+(map #(get m %) (maybe-keys m))
 ]
 [
-(= (get (dissoc! ls "b") "b" :nothing) :nothing)
-(= (get (dissoc! ls 'b) 'b :nothing)  :nothing)
-(= (get (dissoc! ls :b) :b :nothing)  :nothing)
-(= (get (dissoc! ls nil) nil :nothing)  :nothing)
-(= (get (dissoc! ls ["b"]) ["b"] :nothing) :nothing)
-(= (get (dissoc! ls #{"b"}) #{"b"} :nothing) :nothing)
-(= (get (dissoc! ls {:b "b"}) {:b "b"} :nothing) :nothing)
+(= (get (dissoc! m "b") "b" :nothing) :nothing)
+(= (get (dissoc! m 'b) 'b :nothing)  :nothing)
+(= (get (dissoc! m :b) :b :nothing)  :nothing)
+(= (get (dissoc! m nil) nil :nothing)  :nothing)
+(= (get (dissoc! m ["b"]) ["b"] :nothing) :nothing)
+(= (get (dissoc! m #{"b"}) #{"b"} :nothing) :nothing)
+(= (get (dissoc! m {:b "b"}) {:b "b"} :nothing) :nothing)
 ]
 [
-(count ls)
-(maybe-keys ls)
-(map #(get ls %) (maybe-keys ls))
+(count m)
+(maybe-keys m)
+(map #(get m %) (maybe-keys m))
 ]
 [
-(:a ls)
-(update! ls :a inc)
-(:a ls)
-(update! ls :a (fn [& a] (apply + a)) 10 20)
-(:a ls)
+(:a m)
+(update! m :a inc)
+(:a m)
+(update! m :a (fn [& a] (apply + a)) 10 20)
+(:a m)
 ]
 [
 (add-kvmap-watch 
-  ls 
+  m 
   :a
   :my-a-key-watcher
-  (fn [f-k ls k oldval newval] (println "kvmap-watch-fn(f-k,ls,k,old,new):" f-k ls k oldval newval)))
-(:a ls)
-(assoc! ls :a 10)
-(:a ls)
-(dissoc! ls :a)
-(get ls :a :nothing-left)
+  (fn [f-k m k oldval newval] (println "kvmap-watch-fn(f-k,m,k,old,new):" f-k m k oldval newval)))
+(:a m)
+(assoc! m :a 10)
+(:a m)
+(dissoc! m :a)
+(get m :a :nothing-left)
 ]
 [
 (add-kvmap-watch 
-  ls
+  m
   :my-local-storage-watcher
-  (fn [f-k ls k oldval newval] (println "kvmap-watch-fn(f-k,ls,k,old,new):" f-k ls k oldval newval)))
-(:a ls)
-(assoc! ls :a 10)
-(:b ls)
-(assoc! ls :b 42)
-(:a ls)
-(dissoc! ls :b)
-(get ls :b :nothing-left)
+  (fn [f-k m k oldval newval] (println "kvmap-watch-fn(f-k,m,k,old,new):" f-k m k oldval newval)))
+(:a m)
+(assoc! m :a 10)
+(:b m)
+(assoc! m :b 42)
+(:a m)
+(dissoc! m :b)
+(get m :b :nothing-left)
 ]
 [
-(assoc! ls :a 20)
-(remove-kvmap-watch ls :a :my-a-key-watcher)
-(assoc! ls :a 21)
-(remove-kvmap-watch ls ls :my-local-storage-watcher)
-(assoc! ls :a 22)
+(assoc! m :a 20)
+(remove-kvmap-watch m :a :my-a-key-watcher)
+(assoc! m :a 21)
+(remove-kvmap-watch m m :my-local-storage-watcher)
+(assoc! m :a 22)
 ]
 
 ;;;

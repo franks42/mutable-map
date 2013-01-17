@@ -1,7 +1,42 @@
-(ns mutable-kvmap.protocols
+(ns mutable-map.protocols
   ""
   )
 
+
+;; encoding fns to accommodate js-interoperability
+;; by encoding strings as strings, "this is str" instead of "\"this is str\""
+;; edn encoded string is prefixed by clj-edn-prefix ("clj-edn:"),
+;; except for string-type, which is just a string
+;; this encoding scheme allows for keys and values to be read and written as pure strings
+;; and will allow js-interoperability for js-specific keys and values
+
+(def ^{:dynamic true} *pure-edn-encoding* false)
+
+;; prefix to use for edn-encoding of non-string types
+(def clj-edn-prefix "clj-edn:")
+
+(defn pr-edn-str
+  "Equivalent of pr-str, but when *pure-edn-encoding* is false,
+  edn-encoding will be prepended with clj-edn-prefix for non-strings"
+  [o]
+  (if *pure-edn-encoding*
+    (pr-str o)
+    (if (string? o)
+      o 
+      (str clj-edn-prefix (pr-str o)))))
+
+(defn read-edn-string
+  "Equivalent of read-string, but when *pure-edn-encoding* is false,
+  edn-encoded string is expected to be prepended with clj-edn-prefix for non-strings"
+  [s]
+  (if *pure-edn-encoding*
+    (cljs.reader/read-string s)
+    (let [n (count clj-edn-prefix)]
+      (if (= (subs s 0 n) clj-edn-prefix)
+        (cljs.reader/read-string (subs s n))
+        s))))
+
+;;
 
 (defprotocol IMutableKVMapWatchable
   "A mutable kvmap is a key-value store that lends itself to

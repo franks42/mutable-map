@@ -1,7 +1,7 @@
-(ns mutable-kvmap.utils
+(ns mutable-map.utils
   ""
   (:use 
-    [mutable-kvmap.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update! update!*]])
+    [mutable-map.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update! update!* pr-edn-str read-edn-string]])
   (:require [cljs.reader :as reader]))
 
 ;; missing core fns :-(
@@ -77,21 +77,6 @@
 ;; use undefined variable/value to communicate no-value in watcher-fns
 (def ^:private no-value)
 
-;; clj-js-string
-(def clj-edn-prefix "clj-edn:")
-
-(defn encode-edn-str [o]
-  (if (string? o)
-    o 
-    (str clj-edn-prefix (pr-str o))))
-
-(defn decode-edn-str [s]
-  (let [n (count clj-edn-prefix)]
-    (if (= (subs s 0 n) clj-edn-prefix)
-      (cljs.reader/read-string (subs s n))
-      s)))
-
-
 ;;
 
 (defn into!
@@ -106,7 +91,7 @@
         (assoc! dest-map k (get src-map k))))))
 
 
-(defn sync-mutable-kvmaps
+(defn sync-mutable-maps
   "Register watcher functions with the mutable key-value map 
   src-map to update and keep in sync dest-map.
   Single key-values can be sync'ed by specifying 

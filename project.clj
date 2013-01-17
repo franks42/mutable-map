@@ -1,4 +1,4 @@
-(defproject org.clojars.franks42/mutable-kvmap "0.1.0-SNAPSHOT"
+(defproject org.clojars.franks42/mutable-map "0.1.0-SNAPSHOT"
   :description "A MutableKVMap deftype and IMutableKVMapWatchable protocol with CLJS-implementations of a mutable key-value store based on an atom-wrapped map and the HTML5 Local Storage.
   The HTML5 Local Store code is based on the initial shoreleave-browser 0.2.2 implementation - hopefully it can be contributed back once things are stable and work..."
   :url "https://github.com/franks42/mutable-kvmap"
