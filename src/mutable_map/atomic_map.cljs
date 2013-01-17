@@ -1,10 +1,9 @@
 (ns mutable-map.atomic-map
   ""
   (:use 
-    [mutable-map.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update! update!* pr-edn-str read-edn-string]]
+    [mutable-map.core :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update! update!* pr-edn-str read-edn-string]]
   	)
   (:require [cljs.reader :as reader]
-            [mutable-map.utils]
     ))
 
 ;; use undefined variable/value to communicate no-value in watcher-fns
@@ -125,7 +124,7 @@
 
   (update!* [kvm mapkey f args]
     (let [kvm-atm (.-kvmap-atom kvm)
-          oldval (-lookup kvm mapkey no-value)]
+          oldval (get kvm mapkey no-value)]
       (when-not (undefined? oldval)
         (let [newval (apply f oldval args)]
           (if (undefined? newval)

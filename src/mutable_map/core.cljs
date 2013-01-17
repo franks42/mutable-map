@@ -1,6 +1,12 @@
-(ns mutable-map.protocols
-  ""
+(ns mutable-map.core
+  "Protocols and helper-fns implementations for mutable maps.
+  This is the main namespace to require/refer."
   )
+
+
+;; use undefined variable/value to communicate no-value in watcher-fns
+;; very cljs specific unfortunately
+(def ^:private no-value)
 
 
 ;; encoding fns to accommodate js-interoperability
@@ -36,7 +42,8 @@
         (cljs.reader/read-string (subs s n))
         s))))
 
-;;
+
+;; protocol definitions
 
 (defprotocol IMutableKVMapWatchable
   "A mutable kvmap is a key-value store that lends itself to
@@ -77,13 +84,9 @@
   The name 'maybe-keys' reflects the imperfect knowledge obtained...")  
   )
 
+;; todo...
 (defprotocol IMutableMap
   ""
-  (get-in*  [m ks] [m ks not-found]
-    "Returns the value in a nested associative structure,
-    where ks is a sequence of keys. Returns nil if the key
-    is not present, or the not-found value if supplied.
-    This is a bug-fixed version that returns not-found for non-assoc structures.")
   (assoc-in! [m ks v]
     "Associates a value in a nested associative structure, 
     where ks is a sequence of keys and v is the new value.
@@ -101,6 +104,50 @@
   )
 
 
+;; helper fns to make it all look seamless
+
+
+(defn get-in*
+  "Returns the value in a nested associative structure,
+    where ks is a sequence of keys. Returns nil if the key
+    is not present, or the not-found value if supplied.
+    This is a bug-fixed version that returns not-found for non-assoc structures."
+  {:added "1.2"
+   :static true}
+  ([m ks]
+     (reduce get m ks))
+  ([m ks not-found]
+     (loop [sentinel lookup-sentinel
+            m m
+            ks (seq ks)]
+       (if ks
+         (if-not (satisfies? ILookup m)
+           not-found
+           (let [m (get m (first ks) sentinel)]
+             (if (identical? sentinel m)
+               not-found
+               (recur sentinel m (next ks)))))
+         m))))
+
+
+(defn dissoc-in*
+  "Dissociates an entry from a nested associative structure returning a new
+  nested structure. keys is a sequence of keys. Any empty maps that result
+  will not be present in the new structure.
+  Nested key-values of key-list must all be associative structures 
+  up to the last one - exception is thrown when not."
+  [m [k & ks :as keys]]
+  (if ks
+    (if-let [nextmap (get m k)]
+      (let [newmap (dissoc-in* nextmap ks)]
+        (if (seq newmap)
+          (assoc m k newmap)
+          (dissoc m k)))
+      m)
+    (dissoc m k)))
+
+
+;; just transforming "& args" to "args" to accommodate protocol shortcomings ;-)
 (defn update! 
   "'Updates' a value in key-value list, where k is a
   key and f is a function that will take the old value associated with that key
@@ -119,3 +166,54 @@
   Watcher-fns will be notified for affected key."
   [this ks f & args]
   (update-in!* this ks f args))
+
+
+;; generic implementations independent of specific deftype
+
+(defn into!
+  "Copy/overwrites all kvs of src-map into dest-map.
+  dest-map must satisfy ITransientAssociative (assoc!)
+  src-map can be map or mutable map satisfying IMutableKVMap (maybe-keys).
+  Existing values in dest-map are overwritten.
+  Associated dest-map's watcher-fns are notified when registered.
+  Returns dest-map."
+  ([dest-map src-map]
+    (when (satisfies? IMutableKVMap dest-map)
+      (let [ks (if (satisfies? IMutableKVMap src-map)
+                 (maybe-keys src-map)
+                 (keys src-map))]
+        (doseq [k ks]
+          (assoc! dest-map k (get src-map k)))))
+    dest-map))
+
+
+(defn sync-mutable-maps
+  "Register watcher functions with the mutable key-value map 
+  src-map to update and keep in with sync dest-map.
+  Single key-values can be sync'ed by specifying 
+  src-map-key and dest-key-map. If dest-map-key is omitted, 
+  then the src-key-map will be used for the dest-map as well.
+  The whole src-map is sync'ed to dest-map by omitting any specific key.
+  Returns the registered watcher-fn or nil if anything wrong.
+  The registered fn-key for the watcher-fn is the fn itself.
+  src-map and dest-map should satisfy IMutableKVMapWatchable."
+  ([src-map src-map-key dest-map]
+    (sync-mutable-maps src-map src-map-key dest-map src-map-key))
+  ([src-map src-map-key dest-map dest-map-key]
+    (when (and (satisfies? IMutableKVMapWatchable src-map)
+               (satisfies? IMutableKVMapWatchable dest-map))
+      (let [f (fn [fnkey this mapkey oldval newval]
+                (if (undefined? newval)
+                  (dissoc! dest-map dest-map-key)
+                  (assoc! dest-map dest-map-key newval)))]
+        (add-kvmap-watch src-map src-map-key f f)
+        f)))
+  ([src-map dest-map]
+    (when (and (satisfies? IMutableKVMapWatchable src-map)
+               (satisfies? IMutableKVMapWatchable dest-map))
+      (let [f (fn [fnkey this mapkey oldval newval]
+                (if (undefined? newval)
+                  (dissoc! dest-map mapkey)
+                  (assoc! dest-map mapkey newval)))]
+        (add-kvmap-watch src-map f f)
+        f))))

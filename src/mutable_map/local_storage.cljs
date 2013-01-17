@@ -2,11 +2,10 @@
   "An idiomatic interface to the browser's html5 local storage.
   Notice: This code is based on an initial shoreleave-browser 0.2.2 implementation - hopefully some of this code can make its way back..."
   (:use 
-    [mutable-map.protocols :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update! update!* pr-edn-str read-edn-string]]
+    [mutable-map.core :only [IMutableKVMapWatchable notify-kvmap-watches add-kvmap-watch remove-kvmap-watch IMutableKVMap maybe-keys empty! update! update!* pr-edn-str read-edn-string sync-mutable-maps into!]]
   	)
   (:require 
     [mutable-map.atomic-map]
-    [mutable-map.utils]
     [cljs.reader :as reader]
     [goog.storage.mechanism.HTML5LocalStorage :as html5ls]))
 
@@ -203,7 +202,7 @@
 
   ;; not an atomic operation...
   (update!* [ls mapkey f args]
-    (let [oldval (-lookup ls mapkey no-value)]
+    (let [oldval (get ls mapkey no-value)]
       (when-not (undefined? oldval)
         (let [newval (apply f oldval args)]
           (if (undefined? newval)
@@ -235,23 +234,6 @@
                 oldval (if oldValue (read-edn-string (.-oldValue e)) no-value)
                 newValue (.-newValue e)
                 newval (if newValue (read-edn-string newValue) no-value)]
-;;         (println "\"storage\" event(mapkey, oldValue, newval, storageArea, local-storage?):" mapkey oldval newval storage-area local-storage?)
         (notify-kvmap-watches ls mapkey oldval newval)))))
     false))
 
-
-(defn make-cached-local-storage-kvmap
-  "Returns a mutable kvmap that holds a cached, two-way sync'ed copy of 
-  the local storage.
-  All updates to the returned kvmap will be passed thru to the local storage.
-  If the local storage is changed thru the implemented assoc! and dissoc! protocols, 
-  then those changes will be reflected in the returned kvmap.
-  "
-  []
-  (let [kvm (mutable-map.atomic-map/make-atomic-map)
-        ls (get-local-storage)]
-    (mutable-map.utils/into! kvm ls)
-    (mutable-map.utils/sync-mutable-maps ls kvm)
-    (mutable-map.utils/sync-mutable-maps kvm ls)
-    kvm))
-    

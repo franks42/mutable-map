@@ -35,4 +35,7 @@ Even changes to the Local and Session Storage made in other windows, will invoke
 
 Note however, that any native javascript library that makes local changes, will not fire off the events that are needed for the cljs-notification... a limitation of the browser implementations. (maybe there are ways around this... investigate...)
 
+###Acknowledgement
+
+This code is based on an initial shoreleave-browser 0.2.2 implementation - hopefully some of this code can make its way back...
 
